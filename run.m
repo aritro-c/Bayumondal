@@ -3,8 +3,8 @@
 % - H. J. Melosh & A. M. Vickery, Nature, 338, 487-489 (1989) and A. M. Vickery, LPI Contributions, 746, 51-52 (1990).
 % - S. T. Stewart & S. Lock, unpublished manuscript
 % - J. A. Kegerreis et al., Astrophys. J. Lett. 901, L31 (2020)
-%
-% (last updated: 18/10/2024)
+
+
 %Including various additions, such as airburst, kegerreis, volatile
 %deposition, composite escapes.
 
