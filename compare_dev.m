@@ -8,7 +8,7 @@ planet         = 1;
 
 % Impactor typical parameters
 rho_imp        = 2700.000;    % Impactor density [kg/m^3]
-vrel_vesc      = 2.0;         % Typical impact velocity ratio v/v_esc
+vrel_vesc      = 3.0;         % Typical impact velocity ratio v/v_esc
 b              = sin(deg2rad(45));  % Impact Angle is 45 degree
 
 pival          = pi; % Pi [non-dim.]
@@ -229,7 +229,7 @@ for i = 1:num_pts
     % ==========================================================
     
     d_cap = (R_p+R(i))*(1-b); % Height of caps [m]
-    V_cap_imp = pival/3.*d_cap^2*3.*R(i)-d_cap;  % Calculate volume of impactor cap [m^3]
+    V_cap_imp = pival/3.*d_cap^2*(3.*R(i)-d_cap);  % Calculate volume of impactor cap [m^3]
     V_cap_tar = pival/3.*d_cap^2*(3.*R_p-d_cap);  % Calculate volume of target cap [m^3]
     V_p       = 4./3.*pival*R_p^3; % Calculate volume of target body [m^3]
     V_imp     = 4./3.*pival*R(i)^3; % Calculate volume of impactor body [m^3]
