@@ -1,8 +1,7 @@
 % Atmosphere loss parameterizations by
 % - V. Shuvalov, Meteorit. Planet. Sci., 44, 1095-1105 (2009) and V. Shuvalov, LPSC, abstract no. 1191 (2010).
 % - J. A. Kegerreis et al., Astrophys. J. Lett. 901, L31 (2020)
-%
-%
+
 % - Including various additions, such as airburst, kegerreis, volatile deposition, composite escapes.
 
 
@@ -20,10 +19,9 @@ clear all; clc;
 % Read data from N-Body impact file 
 data           = readtable('VENUS.coll.100.dat', 'VariableNamingRule', 'preserve');
 
-% Load continuous degassing data 
-degas_data     = readtable('tseries_outgassed_water_zero.txt', 'VariableNamingRule', 'preserve');
+% Load continuous degassing data (leave empty '' to run without degassing)
+degas_file     = '';   % e.g. 'tseries_outgassed_water.txt' or '' for no degassing
 
-% ====================================================================
 
 
 % Choose planet: 0 - Earth, 1 - Venus, 2 - Mars
@@ -49,68 +47,44 @@ time_shift_Myr = 100;
 data.time      = data.time + time_shift_Myr * 1e6;
 
 
+
+
 % TIMESTEP:
 
-% Configure the time interval (dt) for each step. Set use_auto_dt to true for automatic selection.
-% For auto_dt, the script reads degassing output from StagYY and finds the smallest time interval between steps.
-% The smallest dt could be extremely small. To reduce computation load, the minimum value of dt is 50.
-% dt values are rounded to the closest factor of 50.
-% Set use_auto_dt to false to use manual_dt
+% Configure the time interval (dt) for each step. 
 
-use_auto_dt    = false; 
-manual_dt      = 1e3;  % [years]
+dt             = 1e3;  % [years]
 
 % Plotting Limits [Myr]
 % (Choose the X-axis range for the plots; simulation will run to cover this range)
 plot_xlim      = [100, 350]; 
 
-% ===============================================================================================
-
-
-
-
-
-% ===============================     Timestep Logic   =========================================
-
-
-% Scale normalized outgassed water to kg [Multiply raw value with 2.27e20 (?) ]
-M_degas_H2O_total_kg = degas_data.outgassed_water * 2.27e20;
-
-
-
-if use_auto_dt
-    % Calculate the smallest interval in the degassing data
-    t_diffs = diff(degas_data.Time_Years);
-    min_interval = min(t_diffs(t_diffs > 0)); % Ignore zeros
-    
-    if isempty(min_interval)
-        dt = manual_dt; % Fallback if data is insufficient
-        fprintf('Auto-dt: Insufficient data, using manual_dt = %d yr\n', dt);
-    else
-        % Round down to nearest multiple of 50
-        dt = floor(min_interval / 50) * 50;
-        
-        % Ensure dt is at least 50 (or some reasonable floor)
-        if dt < 50; dt = 50; end
-        fprintf('Auto-dt: Smallest interval is %.2f yr. Setting dt = %d yr\n', min_interval, dt);
-    end
-else
-    dt = manual_dt;
-    fprintf('Manual-dt: Using dt = %d yr\n', dt);
-end
 
 t_start        = 0;
 t_end          = max(max(data.time), plot_xlim(2) * 1e6);
 t_vec          = t_start:dt:t_end;
 num_steps      = length(t_vec);
 
-% Interpolate cumulative degassing onto simulation time vector
-[t_unique, idx] = unique(degas_data.Time_Years);
-M_degas_H2O_unique = M_degas_H2O_total_kg(idx);
-M_degas_H2O_interp = interp1(t_unique, M_degas_H2O_unique, t_vec, 'linear', 'extrap');
 
 
-% ============================================================================================
+
+% ===============================     Degassing Logic   =========================================
+
+% Load and interpolate degassing data, or default to zero
+if ~isempty(degas_file)
+    degas_data     = readtable(degas_file, 'VariableNamingRule', 'preserve');
+    % Scale normalized outgassed water to kg [Multiply raw value with 2.27e20 (?) ]
+    M_degas_H2O_total_kg = degas_data.outgassed_water * 2.27e20;
+    [t_unique, idx] = unique(degas_data.Time_Years);
+    M_degas_H2O_unique = M_degas_H2O_total_kg(idx);
+    M_degas_H2O_interp = interp1(t_unique, M_degas_H2O_unique, t_vec, 'linear', 'extrap');
+else
+    % No degassing: zero contribution at every timestep
+    M_degas_H2O_interp = zeros(size(t_vec));
+end
+
+
+
 
 
 
@@ -134,8 +108,6 @@ M_degas_H2O_interp = interp1(t_unique, M_degas_H2O_unique, t_vec, 'linear', 'ext
     f_H2O = f_cc * cc_H2O + f_ec * ec_H2O;
     f_CO2 = f_cc * cc_CO2 + f_ec * ec_CO2;
     f_N2  = f_cc * cc_N2  + f_ec * ec_N2;
-
-% ====================================================================================================   
  
 
 
@@ -208,8 +180,6 @@ if planet==2
 
 end
 
-% ========================================================================================================
-
 
 
 
@@ -245,7 +215,6 @@ factorcomp=   1.00; %0.3 %1.00
     export_format = 'png'; % 'svg' or 'png'
     export_dpi    = 300;   % DPI for PNG export
     
-%  ================================================================================ 
 
 
 
