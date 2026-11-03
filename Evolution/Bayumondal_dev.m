@@ -150,7 +150,11 @@ if planet==1
     R_p        = 6.0518e6;    % Venus radius [m]
     rho_mean_p = 5204.000;    % Mean density of planet [kg/m^3]
     rho_p      = 2900.000;    % Density of crust [kg/m^3] (assumes that basaltic crust is target material)
-    M_at       = 3.4e20;      % Venus atmosphere mass [kg]
+    
+    % Initial Venus atmosphere mass [65 bars (= 6.5e6 Pa) of pure CO2 at the end of magma ocean. 
+    % Pressure at the surface, P = F/A = M*g/(4*pi*R^2); total mass of the atmosphere, M = (P*4*pi*R^2)/g 
+    M_at       = 3.4e20;    %  [kg]  
+
     rho_atm    = 64.790;      % 50.000;       %64.790;      % Surface density of Venus' atmosphere [kg/m^3]
     height_atm = 15900.0;     % 18900.0;       %15900.0;     % Scale height of Venus atmosphere [m]
     mu         = 44;          % molecular mass of pure CO2 atmosphere [non-dim.] 
