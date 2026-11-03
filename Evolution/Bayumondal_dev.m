@@ -1,7 +1,5 @@
 % Atmosphere loss parameterizations by
 % - V. Shuvalov, Meteorit. Planet. Sci., 44, 1095-1105 (2009) and V. Shuvalov, LPSC, abstract no. 1191 (2010).
-% - H. J. Melosh & A. M. Vickery, Nature, 338, 487-489 (1989) and A. M. Vickery, LPI Contributions, 746, 51-52 (1990).
-% - S. T. Stewart & S. Lock, unpublished manuscript
 % - J. A. Kegerreis et al., Astrophys. J. Lett. 901, L31 (2020)
 %
 %
@@ -23,7 +21,7 @@ clear all; clc;
 data           = readtable('VENUS.coll.100.dat', 'VariableNamingRule', 'preserve');
 
 % Load continuous degassing data 
-degas_data     = readtable('tseries_outgassed_water.txt', 'VariableNamingRule', 'preserve');
+degas_data     = readtable('tseries_outgassed_water_zero.txt', 'VariableNamingRule', 'preserve');
 
 % ====================================================================
 
@@ -64,7 +62,7 @@ manual_dt      = 1e3;  % [years]
 
 % Plotting Limits [Myr]
 % (Choose the X-axis range for the plots; simulation will run to cover this range)
-plot_xlim      = [0, 350]; 
+plot_xlim      = [100, 350]; 
 
 % ===============================================================================================
 
@@ -312,9 +310,11 @@ v              = zeros(i_max,1);
 
 M_loss_comp    = zeros(i_max,1);
 M_loss_AB      = zeros(i_max,1);
+M_loss_fr      = zeros(i_max,1);
 Hhalf          = zeros(i_max,1);
 Hfr            = zeros(i_max,1);
 M_loss_S_frag_AB = zeros(i_max,1); 
+M_loss_S_frag_AB_extrap = zeros(i_max,1); 
 
 M_imp_all      = zeros(i_max,1); 
 
@@ -394,42 +394,47 @@ for j=1:1:num_steps
         % ===============================
 
          % Current mass of impactor [kg]
-        M_imp(i)        = data.mimp(i) * M_sun; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        M_imp(i)        = data.mimp(i) * M_sun; 
         
-        M_imp_all(i)    = M_imp(i); %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        M_imp_all(i)    = M_imp(i); 
 
 
-        % Calculate Volatile Delivery for impact step %%%%%%%%%%%%%%%%%%%
+        % Calculate Volatile Delivery for impact step 
         m_h2o_add = M_imp(i) * f_H2O * depo_eff;
         m_co2_add = M_imp(i) * f_CO2 * depo_eff;
         m_n2_add  = M_imp(i) * f_N2 * depo_eff;
         M_delivered_total = m_h2o_add + m_co2_add + m_n2_add;
 
 
-        % Current radius of impactor (calculated from mass) [m]%%%%%%%%%%%%%%%
+        % Current radius of impactor (calculated from mass) [m]
         R(i)        = (M_imp(i) / (4/3 * pival * rho_imp))^(1/3);
 
 
         % Mutual escape velocity [m/s]
         v_esc(i)    = sqrt(2*G*(M_p+M_imp(i))/(R_p+R(i)));
 
-        % Define impact velocity of interest [m/s] %%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Define impact velocity of interest [m/s] 
         v(i)          = data.("vrel/vesc")(i) * v_esc(i);
 
 
-        % Current atm: %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Current atm: 
         M_at_current = M_CO2_shu + M_N2_shu + M_H2O_shu;
         
-        % Molecular weight (mu) %%%%%%%%%%%%%%%%%%%%%%%%%
+        % Molecular weight (mu) 
         moles_total = (M_H2O_shu/18) + (M_N2_shu/28) + (M_CO2_shu/44);
         mu_current_val = M_at_current / moles_total;
         
-        % Scale Height and Surface Density %%%%%%%%%%%%%%%%%%%%%%
+        % Scale Height and Surface Density 
         height_atm_current_val = height_atm * (mu / mu_current_val);
         rho_atm_current = (M_at_current / M_at) * rho_atm;
         
 
-        % Impact efficiency [non-dim.] (Shuvalov's eq. (2)) %%%%%%%%%%%%%%%%%%
+
+
+
+
+
+        % Impact efficiency [non-dim.] (Shuvalov's eq. (2))
         xi(i)       = (2.000*R(i))^3*rho_imp*rho_p*(v(i)^2-v_esc(i)^2)/(height_atm_current_val^3*rho_atm_current*v_esc(i)^2*(rho_p+rho_imp));
         
         xi(i)=max(xi(i),1000);
@@ -445,35 +450,57 @@ for j=1:1:num_steps
         vel_ratio(i)  = ((v(i)^2-v_esc(i)^2)/v_esc(i)^2);
         
         % Atmospheric mass loss [kg] (reformulated version of Shuvalov's equation (4))
-        M_loss(i)     = chi(i)*M_imp(i)*((v(i)^2-v_esc(i)^2)/v_esc(i)^2);
+        M_loss(i)     = chi(i) * M_imp(i) * ((v(i)^2-v_esc(i)^2)/v_esc(i)^2);
       
 
 
     %%
         
         
-        % for AIRBURSTS for Shuvalov 2014.
+        % Airburst [Shuvalov (2014)]
 
         Hhalf(i)=-1.4*height_atm_current_val* log(0.5*(1/height_atm_current_val)*5.5*(2.000*R(i))*(rho_imp/rho_atm_current)^0.5);
 
         Hfr(i)=-1.4*height_atm_current_val* log(0.5*(1/height_atm_current_val)*3.5*(2.000*R(i))*(rho_imp/rho_atm_current)^0.5);
 
-        Vlim= (15+0.2*height_atm_current_val/1000)*1000; % Convert km/s to m/s 
+        Vlim= (15+0.2*height_atm_current_val/1000); % [km] [Eq (10) in Shuvalov+ 2014]
+        Vlim  = max(Vlim, 0); % Vlim shouldn't be negative
         
-        M_loss_AB(i)= M_imp(i)*5.5*0.001*(2.000*R(i)/height_atm_current_val)*((rho_imp/1000.)^0.5)*((v(i)-Vlim)^2.);
-        if(Hhalf(i)<0)
-            M_loss_S_frag_AB(i)=M_loss(i);
-        elseif(Hfr(i)>0)
-            M_loss_S_frag_AB(i)=M_loss_AB(i);
+        M_loss_AB(i)= M_imp(i)*5.5*0.001*(2.000*R(i)/height_atm_current_val)*((rho_imp/1000.)^0.5)*(((v(i))/1000-Vlim)^2.);
+        M_loss_fr(i) = 10^((log10(M_loss_AB(i))-log10(M_loss(i)))/(Hfr(i)-Hhalf(i))*(Hfr(i))+log10(M_loss(i))); % [ From eq (11) in Shuvalov+ 2014]
+        
+
+
+        %  If Hhalf > 0 the impact is regarded as aerial burst,
+        %  and Eqs. (9) and (10) are used to work out how much atmosphere is eroded (Shuvalov+, 2014)
+        if(Hhalf(i) > 0)
+            M_loss_S_frag_AB(i) = M_loss_AB(i);
+
+        % Estimates for impacts of fragmented projectiles (Hhalf < 0; Hfr > 0) are obtained from (11) (Shuvalov+, 2014) 
+        elseif(Hhalf(i) < 0) && (Hfr(i) > 0)
+
+            M_loss_S_frag_AB(i) = M_loss_fr(i);
+
         else
-           M_loss_S_frag_AB(i)=10^((log10(M_loss_AB(i))-log10(M_loss(i)))/(Hfr(i)-Hhalf(i))*(Hfr(i))+log10(M_loss(i)));    
+
+           M_loss_S_frag_AB(i) =  M_loss(i); 
+        
         end
         
-        
-        %%
+        % Mass of atmosphere above tangent plane [kg] 
+        % the maximum atmospheric mass that they can eject in a single impact is given by all the mass above the tangent plane, 
+        % which is H/2R of the total atmosphere, where H is the scale height, and R is the radius of the planet (Schlichting+ 2015)                                                                                                    
+        m_tan         = M_at_current*height_atm_current_val/(2.000*R_p);
 
 
-    % Update Species Reservoirs 
+        % Tangent Plane limit for Shuvalov
+        if M_loss_S_frag_AB(i) > m_tan
+            M_loss_S_frag_AB(i) = m_tan;
+        end
+ 
+
+
+        % Update Species Reservoirs 
         
         % Fractions of the atmosphere being eroded
         f_CO2_s = M_CO2_shu / M_at_rem_shu;
@@ -498,37 +525,15 @@ for j=1:1:num_steps
         
         
         
-        % B: Melosh & Vickery (1989) + Vickery (1990) model:
-        % ==================================================
-        
-        % Mass of atmosphere above tangent plane [kg] (based on Pham, PhD thesis, eq. (2.4), p. 22, 2012)
-        m_tan         = M_at*height_atm_current_val/(2.000*R_p);
-        
-        % Based on Melosh & Vickery (1989)
-        v_escc        = sqrt(8.000/3.000*pival*rho_mean_p*G*R_p^2.000);
-        v_min_mv      = sqrt(8.000*((v_escc^2.000)/2.000+H_vap));
-        
-        % Based on Vickery (1990)  
-        m_crit_mv     = 10.000*m_tan;
-        r_crit_mv     = (3.000*m_crit_mv/(4.000*pival*rho_imp))^(1.000/3.000);
-       
-        if(M_imp(i)<m_crit_mv)
-            M_loss_mv(i) = 0.000;
-            
-        elseif(M_imp(i)>=m_crit_mv)
-            M_loss_mv(i) = m_tan;
-            
-        end
-        
-        % Atmosphere loss fraction [non-dim.]
-        loss_frac_mv(i)  = M_loss_mv(i)/M_at;
-        
-        % Atmosphere loss fraction 2 [non-dim.]
-        loss_frac2_mv(i) = M_loss_mv(i)/M_imp(i);
-        
-        
 
-        % D: Kegerreis et al. (2020) model:
+
+
+
+
+
+
+
+        % B: Kegerreis et al. (2020) model:
         % =================================
 
         % Impact parameter [non-dim.]
@@ -549,6 +554,12 @@ for j=1:1:num_steps
         % Calculate volume of impactor body [m^3]
         V_imp(i)     = 4./3.*pival*R(i)^3;
 
+        
+        V_cap_imp(d(i) >= 2.*R(i)) = V_imp (d(i) >= 2.*R(i)); % When d >= Impactor_diameter, Impactor_volume_cap = Impactor_volume ;
+        V_cap_tar(d(i) >= R_p) = V_p; % When d >= Planet_diameter, Planet_volume_cap = Planet_volume (This limit is probably unnecessary for our use case);
+
+
+
         % Calculate fractional interacting mass [non-dim.]
         f_M(i)       = (rho_mean_p*V_cap_tar(i)+rho_imp*V_cap_imp(i))/(rho_mean_p*V_p+rho_imp*V_imp(i));
 
@@ -563,7 +574,7 @@ for j=1:1:num_steps
              X(i) = 1.000;
         end
 
-        % CUMULATIVE Update %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % CUMULATIVE Update 
         
         % Calculate and store the mass lost in each impact step 
         M_loss_ke(i) = X(i) * M_at_rem_ke;
@@ -579,22 +590,132 @@ for j=1:1:num_steps
 
 
 
-    % %% COPMOSITE
 
-    %compteurs for transition in composite scheme (Shuv->Keg).
+
+
+
+
+
+
+    % %% C: COPMOSITE MODEL
+    % =================================
+
+
+        % Calculate current atmospheric state for the COMPOSITE reservoir
+        M_at_curr_comp = M_CO2_comp + M_N2_comp + M_H2O_comp;
+        moles_tot_comp = (M_H2O_comp/18) + (M_N2_comp/28) + (M_CO2_comp/44);
+        mu_curr_comp   = M_at_curr_comp / moles_tot_comp;
+        
+        height_atm_comp = height_atm * (mu / mu_curr_comp);
+        rho_atm_comp    = (M_at_curr_comp / M_at) * rho_atm;
+        m_tan_comp      = M_at_curr_comp * height_atm_comp / (2.000 * R_p);
+
+
+
+        % 2. Kegerreis mass loss evaluated on the COMPOSITE reservoir
+        M_loss_ke_comp = X(i) * M_at_rem_comp;
+
+
+        %compteurs for transition in composite scheme (Shuv->Keg).
        
-       iminc = 1.000e5; % Below this radius value, pure Shuvalov model
-       imaxc = 10.000e5; % Above this radius value, pure Kegerreis model
+        iminc = 50e3; % [meters] Below this radius value, pure Shuvalov model 
+        imaxc = 2443e3; % [meters] Above this radius value, pure Kegerreis model 
 
-    %composite lossscheme
+        %composite lossscheme (with Shuvalov extrapolation)
         if (R(i)<iminc)
-             M_loss_comp(i)=M_loss_S_frag_AB(i); % use AIRBIRST
-         elseif (R(i)>imaxc)
-             M_loss_comp(i)=M_loss_ke(i);
-         else
-              M_loss_comp(i)= 10^((log10(M_loss_ke(i))-log10(M_loss_S_frag_AB(i)))/(log10(imaxc)-log10(iminc))*(log10(R(i))-log10(iminc))+log10(M_loss_S_frag_AB(i)));
-              % M_loss_comp(i)= exp((log(M_loss_ke(i))-log(M_loss_S_frag_AB(i)))/(log(imaxc)-log(iminc))*(logR(i)-log(iminc))+log(M_loss_S_frag_AB(i)));
-        end  
+            
+            % a. Pure Shuvalov + Airburst evaluated on COMPOSITE atmosphere
+            xi_c = (2.000*R(i))^3 * rho_imp * rho_p * (v(i)^2 - v_esc(i)^2) / ...
+                   (height_atm_comp^3 * rho_atm_comp * v_esc(i)^2 * (rho_p + rho_imp));
+            xi_c = max(xi_c, 1000);
+            chi_c = 10^(-6.375 + 5.239*log10(xi_c) - 2.121*(log10(xi_c)^2) + ...
+                    0.397*(log10(xi_c)^3) - 0.037*(log10(xi_c)^4) + 0.0013*(log10(xi_c)^5));
+            M_loss_c = chi_c * M_imp(i) * ((v(i)^2 - v_esc(i)^2) / v_esc(i)^2);
+
+            Hhalf_c = -1.4 * height_atm_comp * log(0.5 * (1/height_atm_comp) * 5.5 * (2.000*R(i)) * (rho_imp/rho_atm_comp)^0.5);
+            Hfr_c   = -1.4 * height_atm_comp * log(0.5 * (1/height_atm_comp) * 3.5 * (2.000*R(i)) * (rho_imp/rho_atm_comp)^0.5);
+            Vlim_c  = max(15 + 0.2 * height_atm_comp / 1000, 0);
+
+            M_loss_AB_c = M_imp(i) * 5.5 * 0.001 * (2.000*R(i)/height_atm_comp) * ((rho_imp/1000.)^0.5) * (((v(i))/1000 - Vlim_c)^2.);
+            M_loss_fr_c = 10^((log10(M_loss_AB_c) - log10(M_loss_c)) / (Hfr_c - Hhalf_c) * (Hfr_c) + log10(M_loss_c));
+
+            if (Hhalf_c > 0)
+                M_loss_comp(i) = M_loss_AB_c;
+            elseif (Hhalf_c < 0) && (Hfr_c > 0)
+                M_loss_comp(i) = M_loss_fr_c;
+            else
+                M_loss_comp(i) = M_loss_c;
+            end
+
+            if M_loss_comp(i) > m_tan_comp
+                M_loss_comp(i) = m_tan_comp;
+            end
+
+
+
+            
+            elseif (R(i) > imaxc)
+            % b. Pure Kegerreis evaluated on COMPOSITE atmosphere
+            M_loss_comp(i) = M_loss_ke_comp;
+
+
+
+            else
+            % c. Sweep radii from iminc to R(i) using COMPOSITE atmospheric properties
+            vrel_vesc_i = data.("vrel/vesc")(i);
+            n_sweep = 30;
+            R_sweep = logspace(log10(iminc), log10(R(i)), n_sweep)';
+            M_shu_sweep = zeros(n_sweep, 1);
+
+            for ks = 1:n_sweep
+                Rk = R_sweep(ks);
+                Mk = 4/3 * pival * Rk^3 * rho_imp;
+                v_esc_k = sqrt(2*G*(M_p + Mk)/(R_p + Rk));
+                vk = vrel_vesc_i * v_esc_k;
+
+                % Shuvalov ground-impact (using height_atm_comp and rho_atm_comp)
+                xi_k = (2*Rk)^3*rho_imp*rho_p*(vk^2-v_esc_k^2) / ...
+                       (height_atm_comp^3*rho_atm_comp*v_esc_k^2*(rho_p+rho_imp));
+                xi_k = max(xi_k, 1000);
+                chi_k = 10^(-6.375+5.239*log10(xi_k)-2.121*(log10(xi_k)^2) ...
+                        +0.397*(log10(xi_k)^3)-0.037*(log10(xi_k)^4)+0.0013*(log10(xi_k)^5));
+                M_loss_k = chi_k * Mk * ((vk^2-v_esc_k^2)/v_esc_k^2);
+
+                % Airburst [Shuvalov (2014)] (using height_atm_comp and rho_atm_comp)
+                Hhalf_k = -1.4*height_atm_comp*log(0.5*(1/height_atm_comp)*5.5*(2*Rk)*(rho_imp/rho_atm_comp)^0.5);
+                Hfr_k   = -1.4*height_atm_comp*log(0.5*(1/height_atm_comp)*3.5*(2*Rk)*(rho_imp/rho_atm_comp)^0.5);
+                Vlim_k  = max(15+0.2*height_atm_comp/1000, 0);
+                M_loss_AB_k = Mk*5.5*0.001*(2*Rk/height_atm_comp)*((rho_imp/1000)^0.5)*((vk/1000-Vlim_k)^2);
+                M_loss_fr_k = 10^((log10(M_loss_AB_k)-log10(M_loss_k))/(Hfr_k-Hhalf_k)*(Hfr_k)+log10(M_loss_k));
+
+                % Select regime
+                if (Hhalf_k > 0)
+                    val_k = M_loss_AB_k;
+                elseif (Hhalf_k < 0) && (Hfr_k > 0)
+                    val_k = M_loss_fr_k;
+                else
+                    val_k = M_loss_k;
+                end
+
+                % Tangent plane limit (using m_tan_comp)
+                val_k = min(val_k, m_tan_comp);
+
+                % Monotonic clamp
+                if ks > 1 && val_k < M_shu_sweep(ks-1)
+                    val_k = M_shu_sweep(ks-1);
+                end
+                M_shu_sweep(ks) = val_k;
+            end
+
+            % Extrapolated Shuvalov value at R(i)
+            M_loss_shu_extrap = M_shu_sweep(end);
+
+            % Composite interpolation (using M_loss_ke_comp and M_loss_shu_extrap)
+            M_loss_comp(i) = 10^((log10(M_loss_ke_comp)-log10(M_loss_shu_extrap))/(log10(imaxc)-log10(iminc))*(log10(R(i))-log10(iminc))+log10(M_loss_shu_extrap));
+        end
+
+
+
 
 
         % Calculate current fractions for the composite reservoir
@@ -645,38 +766,7 @@ for j=1:1:num_steps
     mu_history(j) = M_at_curr_step / moles_total_step;
     height_atm_history(j) = height_atm * (mu / mu_history(j));
 
-end % End timestep loop
-
-
-
-
-%Second run for composite
-
-%radius loop
-%for i=1:1:i_max
-%composite
-% if (R(i)<1.500e5);
-%     M_loss_comp(i)=M_loss(i);
-% elseif (R(i)>8.000e5);
-%     M_loss_comp(i)=M_loss_ke(i);
-% else
-%     M_loss_comp(i)= 10^((log10(M_loss_ke(imaxc))-log10(M_loss(iminc)))/(imaxc-iminc)*(i-iminc)+log10(M_loss(iminc)));
-    
-% end  
-%end
-
-
-% % Include warning messages in case impactor radius and/or velocity is insufficient
-% if(r_int<r_crit_mv && v >= v_min_mv)
-%     disp(' ')
-%     disp('Impactor radius insufficient to blow off atmosphere above tangent plane! Velocity is ok.')
-% elseif(r_int>r_crit_mv && v < v_min_mv)
-%     disp(' ')
-%     disp('Impactor velocity insufficient to blow off atmosphere above tangent plane! Radius is ok.')    
-% elseif(r_int<r_crit_mv && v < v_min_mv)
-%     disp(' ')
-%     disp('Impactor radius and velocity insufficient to blow off atmosphere above tangent plane!')
-% end    
+end % End timestep loop 
 
 
 time_Myr_impacts = data.time / 1e6;
