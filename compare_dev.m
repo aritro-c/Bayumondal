@@ -4,7 +4,7 @@ clear all; clc;
 
 % Choose planet: 0 - Earth, 1 - Venus, 2 - Mars
 
-planet         = 1;           
+planet         = 1;
 
 % Impactor typical parameters
 rho_imp        = 2700.000;    % Impactor density [kg/m^3]
@@ -20,8 +20,8 @@ use_AB         = true;     % Set to true to use Airburst for Shuvalov
 
 
 % COMPOSITE Scheme Limits
-iminc = 50e3; % [meters] Below this radius value, pure Shuvalov model 
-imaxc = 2443e3; % [meters] Above this radius value, pure Kegerreis model 
+iminc = 50e3; % [meters] Below this radius value, pure Shuvalov model
+imaxc = 2443e3; % [meters] Above this radius value, pure Kegerreis model
 
 
 
@@ -35,11 +35,11 @@ if planet==0
     M_at       = 5.100e18;    % Earth atmosphere mass [kg]
     rho_atm    = 1.217;       % Surface density of Earth's atmosphere [kg/m^3]
     height_atm = 8500.0;      % Scale height of Earth atmosphere [m]
-    mu         = 29;          % molecular mass of (N2 + O2) atmosphere [non-dim.] 
+    mu         = 29;          % molecular mass of (N2 + O2) atmosphere [non-dim.]
 
-    M_N2  = M_at * 0.7808; 
-    M_H2O  = M_at * 0.01; 
-    M_CO2 = M_at * 0.0004; 
+    M_N2  = M_at * 0.7808;
+    M_H2O  = M_at * 0.01;
+    M_CO2 = M_at * 0.0004;
 
 
 end
@@ -54,11 +54,11 @@ if planet==1
     M_at       = 3.4e20;      % Venus atmosphere mass [kg]
     rho_atm    = 64.790;      % 50.000;       %64.790;      % Surface density of Venus' atmosphere [kg/m^3]
     height_atm = 15900.0;     % 18900.0;       %15900.0;     % Scale height of Venus atmosphere [m]
-    mu         = 44;          % molecular mass of pure CO2 atmosphere [non-dim.] 
+    mu         = 44;          % molecular mass of pure CO2 atmosphere [non-dim.]
 
-    M_N2  = M_at * 0.0000; 
-    M_H2O  = M_at * 0.0000; 
-    M_CO2 = M_at * 1.0000; 
+    M_N2  = M_at * 0.0000;
+    M_H2O  = M_at * 0.0000;
+    M_CO2 = M_at * 1.0000;
 
 
 end
@@ -72,11 +72,11 @@ if planet==2
     M_at       = 2.5e18;           %2.5e16     % Mars atmosphere mass [kg]
     rho_atm    = 1.2;           %0.020;      % Surface density of Mars' atmosphere [kg/m^3]
     height_atm = 14100.0;      %11100.0;     % Scale height of Mars atmosphere [m]
-    mu         = 44;          % molecular mass of pure CO2 atmosphere [non-dim.] 
-    
-    M_N2  = M_at * 0.027; 
-    M_H2O  = M_at * 0.000; 
-    M_CO2 = M_at * 0.9500; 
+    mu         = 44;          % molecular mass of pure CO2 atmosphere [non-dim.]
+
+    M_N2  = M_at * 0.027;
+    M_H2O  = M_at * 0.000;
+    M_CO2 = M_at * 0.9500;
 
 
 end
@@ -92,15 +92,15 @@ factorcomp=   1.00; %0.3 %1.00
 
 
 
-% ================= Radius Ragne ================= 
+% ================= Radius Ragne =================
 
 
 % Choose the minimum and maximum impactor radius [meters]
-radius_min = 10;   
-radius_max = 10e6;  
+radius_min = 1000;
+radius_max = 10e6;
 
 % Range of Impactor Radii [m]
-R = logspace(log10(radius_min), log10(radius_max), 1000)'; 
+R = logspace(log10(radius_min), log10(radius_max), 1000)';
 num_pts = length(R);
 
 
@@ -112,13 +112,13 @@ num_pts = length(R);
     % Figure size (inches)
     fig_width  = 18; % Default is 10
     fig_height = 12;  % Default is 14
-    
+
     % Plot Style
     plot_lw    = 5;      % LineWidth for plots
     border_lw  = 1.5;    % LineWidth for axes border
     legend_fs  = 18;     % FontSize for legends
     axes_fs    = 28;     % FontSize for axes labels
-    
+
     % Export Settings
     export_format = 'png'; % 'svg' or 'png'
     export_dpi    = 300;   % DPI for PNG export
@@ -135,12 +135,14 @@ M_loss_ke = zeros(num_pts,1);
 M_loss_S_frag_AB = zeros(num_pts,1);
 M_loss_S_frag_AB_extrap = zeros(num_pts,1);
 M_imp = zeros(num_pts,1);
+xi = zeros(num_pts,1);
+chi = zeros(num_pts,1);
 
 
-    
-% Mass of atmosphere above tangent plane [kg] 
-% the maximum atmospheric mass that they can eject in a single impact is given by all the mass above the tangent plane, 
-% which is H/2R of the total atmosphere, where H is the scale height, and R is the radius of the planet (Schlichting+ 2015)                                                                                                    
+
+% Mass of atmosphere above tangent plane [kg]
+% the maximum atmospheric mass that they can eject in a single impact is given by all the mass above the tangent plane,
+% which is H/2R of the total atmosphere, where H is the scale height, and R is the radius of the planet (Schlichting+ 2015)
 m_tan         = M_at*height_atm_current_val/(2.000*R_p);
 
 
@@ -163,47 +165,47 @@ for i = 1:num_pts
     % =======================================================
     % A: Shuvalov (2009, 2010) + Airburst [Shuvalov (2014)]
     % =======================================================
-    
+
 
 
     % Impact efficiency [non-dim.] (Shuvalov's eq. (2))
-    xi = (2.000*R(i))^3*rho_imp*rho_p*(v^2-v_esc^2)/(height_atm_current_val^3*rho_atm_current*v_esc^2*(rho_p+rho_imp));
-    xi = max(xi, 1000); % Without this threshold the plot looks weird
-    
+    xi(i) = (2.000*R(i))^3*rho_imp*rho_p*(v^2-v_esc^2)/(height_atm_current_val^3*rho_atm_current*v_esc^2*(rho_p+rho_imp));
+    % xi(i) = max(xi(i), 1000); % Without this threshold the plot looks weird
+
     % Polynomial fit [non-dim.]
-    chi = 10^(-6.375+5.239*log10(xi)-2.121*(log10(xi)^2)+0.397*(log10(xi)^3)-0.037*(log10(xi)^4)+0.0013*(log10(xi)^5));  
-    
+    chi(i) = 10^(-6.375+5.239*log10(xi(i))-2.121*(log10(xi(i))^2)+0.397*(log10(xi(i))^3)-0.037*(log10(xi(i))^4)+0.0013*(log10(xi(i))^5));
+
     % Atmospheric mass loss [kg]
-    M_loss = chi * M_imp(i) * ((v^2-v_esc^2)/v_esc^2);
-    
+    M_loss = chi(i) * M_imp(i) * ((v^2-v_esc^2)/v_esc^2);
+
     % Airbursts
     Hhalf = -1.4*height_atm_current_val* log(0.5*(1/height_atm_current_val)*5.5*(2.000*R(i))*(rho_imp/rho_atm_current)^0.5); % [Eq (7) in Shuvalov+ 2014]
     Hfr   = -1.4*height_atm_current_val* log(0.5*(1/height_atm_current_val)*3.5*(2.000*R(i))*(rho_imp/rho_atm_current)^0.5); % [Eq (8) in Shuvalov+ 2014]
-       
+
     Vlim  = (15+0.2*height_atm_current_val/1000); % [km] [Eq (10) in Shuvalov+ 2014]
     Vlim  = max(Vlim, 0); % Vlim shouldn't be negative
 
-    
+
     M_loss_AB = M_imp(i)*5.5*0.001*(2.000*R(i)/height_atm_current_val)*((rho_imp/1000)^0.5)*(((v/1000)-Vlim)^2.); % [From eq (9) in Shuvalov+ 2014]
- 
+
     M_loss_fr = 10^((log10(M_loss_AB)-log10(M_loss))/(Hfr-Hhalf)*(Hfr)+log10(M_loss)); % [ From eq (11) in Shuvalov+ 2014]
-    
-    if use_AB 
+
+    if use_AB
 
         %  If Hhalf > 0 the impact is regarded as aerial burst,
         %  and Eqs. (9) and (10) are used to work out how much atmosphere is eroded (Shuvalov+, 2014)
-        if(Hhalf > 0) 
-            M_loss_S_frag_AB(i) = M_loss_AB; 
+        if(Hhalf > 0)
+            M_loss_S_frag_AB(i) = M_loss_AB;
 
-        % Estimates for impacts of fragmented projectiles (Hhalf < 0; Hfr > 0) are obtained from (11) (Shuvalov+, 2014) 
+        % Estimates for impacts of fragmented projectiles (Hhalf < 0; Hfr > 0) are obtained from (11) (Shuvalov+, 2014)
         elseif(Hhalf < 0) && (Hfr > 0)
 
-            M_loss_S_frag_AB(i) = M_loss_fr; 
+            M_loss_S_frag_AB(i) = M_loss_fr;
         else
-             
+
             M_loss_S_frag_AB(i) = M_loss;
         end
-    
+
     else
         M_loss_S_frag_AB(i) = M_loss;
 
@@ -216,18 +218,18 @@ for i = 1:num_pts
 
     % EXTRAPOLATION
     M_loss_S_frag_AB_extrap(i) = M_loss_S_frag_AB(i);
-    
+
     if i > 1 && M_loss_S_frag_AB_extrap(i) < M_loss_S_frag_AB_extrap(i-1)
         M_loss_S_frag_AB_extrap(i) = M_loss_S_frag_AB_extrap(i-1);
     end
-    
+
 
 
 
     % ==========================================================
     % Kegerreis (2020)
     % ==========================================================
-    
+
     d_cap = (R_p+R(i))*(1-b); % Height of caps [m]
     V_cap_imp = pival/3.*d_cap^2*(3.*R(i)-d_cap);  % Calculate volume of impactor cap [m^3]
     V_cap_tar = pival/3.*d_cap^2*(3.*R_p-d_cap);  % Calculate volume of target cap [m^3]
@@ -239,20 +241,20 @@ for i = 1:num_pts
 
     f_M       = (rho_mean_p*V_cap_tar+rho_imp*V_cap_imp)/(rho_mean_p*V_p+rho_imp*V_imp);  % Calculate fractional interacting mass [non-dim.]
     M_tot     = M_imp(i)+M_p;  % Total mass involved in collision [kg]
-    
+
     X_frac = factorcomp * 0.64*( (v/v_esc)^2. * (M_imp(i)/M_tot)^(0.5) * (rho_imp/rho_mean_p)^(0.5)*f_M)^(0.65); % Fraction of eroded atmosphere [non-dim.] (eq. 1)
-    
+
     % Set upper limit
     if(X_frac > 1.000)
         X_frac = 1.000;
     end
-    
+
     M_loss_ke(i) = X_frac * M_at;
-    
+
     % ==========================================================
     % Composite Scheme
     % ==========================================================
-    
+
     if (R(i) < iminc)
         M_loss_comp(i) = M_loss_S_frag_AB_extrap(i);
     elseif (R(i) > imaxc)
@@ -264,10 +266,10 @@ end
 
 
 
-    
 
 
-if use_AB 
+
+if use_AB
 
      shuv_label = 'Shuvalov + Airburst';
 
@@ -286,13 +288,13 @@ end
 if strcmp(export_format, 'svg')
     export_ext = '.svg';
     export_driver = '-dsvg';
-    export_res = '-painters'; 
+    export_res = '-painters';
     bg_color = 'none';
 else
     export_ext = '.png';
     export_driver = '-dpng';
     export_res = ['-r', num2str(export_dpi)];
-    bg_color = 'w'; 
+    bg_color = 'w';
 end
 
 
@@ -304,7 +306,7 @@ end
 figure('Name', 'Impactor Radius vs Erosion');
 
 % Convert Radius to km for X-axis
-R_km = R / 1000; 
+R_km = R / 1000;
 
 % Plot individual and composite models
 loglog(R_km, M_loss_comp, '-','Color', [1 0.5 0], 'LineWidth', plot_lw);
@@ -336,3 +338,33 @@ set(gcf, 'Renderer', 'painters');
 
 % Export Configured Format
 print(gcf, [file_name, export_ext], export_driver, export_res);
+
+
+
+
+% ==========================================================
+% Plot 2: xi vs chi
+% ==========================================================
+figure('Name', 'xi vs chi');
+
+loglog(xi, chi, 'b-', 'LineWidth', plot_lw);
+xlabel('\xi', 'FontWeight', 'bold');
+ylabel('\chi', 'FontWeight', 'bold');
+title('\xi vs \chi', 'FontWeight', 'bold');
+xlim([0.001 1000000]);
+ylim([1e-6 0.1]);
+grid on;
+
+% Axis Style
+set(gca, 'FontSize', axes_fs, 'FontWeight', 'bold', 'LineWidth', border_lw, 'Box', 'on');
+
+% Transparency and Sizing
+set(gcf, 'Units', 'inches', 'Position', [1, 1, fig_width, fig_height]);
+set(gcf, 'PaperUnits', 'inches', 'PaperPosition', [0, 0, fig_width, fig_height]);
+set(gcf, 'PaperSize', [fig_width, fig_height]);
+set(gcf, 'Color', bg_color); set(gca, 'Color', bg_color);
+set(gcf, 'InvertHardcopy', 'off');
+set(gcf, 'Renderer', 'painters');
+
+% Export Configured Format
+print(gcf, ['xi_vs_chi', export_ext], export_driver, export_res);
