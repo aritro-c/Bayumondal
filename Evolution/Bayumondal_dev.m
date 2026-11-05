@@ -194,6 +194,13 @@ a1             =  0.562;
 factorcomp=   1.00; %0.3 %1.00
 
 
+%compteurs for transition in composite scheme (Shuv->Keg).
+       
+iminc = 50e3; % [meters] Below this radius value, pure Shuvalov model 
+imaxc = 2443e3; % [meters] Above this radius value, pure Kegerreis model 
+
+
+
 
 
 
@@ -468,20 +475,70 @@ for j=1:1:num_steps
         if M_loss_S_frag_AB(i) > m_tan
             M_loss_S_frag_AB(i) = m_tan;
         end
- 
-
-
-        % Update Species Reservoirs 
         
-        % Fractions of the atmosphere being eroded
+        % Shuvalov's model Shuvalov's model has been tested for upto 50 km radius impactor. 
+        % Beyond 50 km, the curve dips which is not phyically consistent. 
+        % So we use a linear extrapolation that uses the maximum value of M_shu, i.e., a "Monotonic clamp"
+        % Since the Shuvalov model depends on H, impact velocity, etc., it is not static and needs to be calculated for each impact.
+        
+        
+        % Monotonic Clamp for Pure Shuvalov above 50 km ---
+        
+        if R(i) <= iminc
+            M_loss_S_frag_AB_extrap(i) = M_loss_S_frag_AB(i);
+        else
+            vrel_vesc_i = data.("vrel/vesc")(i);
+            n_sweep = 30;
+            R_sweep = logspace(log10(iminc), log10(R(i)), n_sweep)';
+            M_shu_sweep = zeros(n_sweep, 1);
+
+            for ks = 1:n_sweep
+                Rk = R_sweep(ks);
+                Mk = 4/3 * pival * Rk^3 * rho_imp;
+                v_esc_k = sqrt(2*G*(M_p + Mk)/(R_p + Rk));
+                vk = vrel_vesc_i * v_esc_k;
+
+                xi_k = (2*Rk)^3*rho_imp*rho_p*(vk^2-v_esc_k^2) / ...
+                       (height_atm_current_val^3*rho_atm_current*v_esc_k^2*(rho_p+rho_imp));
+                xi_k = max(xi_k, 1000);
+                chi_k = 10^(-6.375+5.239*log10(xi_k)-2.121*(log10(xi_k)^2) ...
+                        +0.397*(log10(xi_k)^3)-0.037*(log10(xi_k)^4)+0.0013*(log10(xi_k)^5));
+                M_loss_k = chi_k * Mk * ((vk^2-v_esc_k^2)/v_esc_k^2);
+
+                Hhalf_k = -1.4*height_atm_current_val*log(0.5*(1/height_atm_current_val)*5.5*(2*Rk)*(rho_imp/rho_atm_current)^0.5);
+                Hfr_k   = -1.4*height_atm_current_val*log(0.5*(1/height_atm_current_val)*3.5*(2*Rk)*(rho_imp/rho_atm_current)^0.5);
+                Vlim_k  = max(15+0.2*height_atm_current_val/1000, 0);
+                M_loss_AB_k = Mk*5.5*0.001*(2*Rk/height_atm_current_val)*((rho_imp/1000)^0.5)*((vk/1000-Vlim_k)^2);
+                M_loss_fr_k = 10^((log10(M_loss_AB_k)-log10(M_loss_k))/(Hfr_k-Hhalf_k)*(Hfr_k)+log10(M_loss_k));
+
+                if (Hhalf_k > 0)
+                    val_k = M_loss_AB_k;
+                elseif (Hhalf_k < 0) && (Hfr_k > 0)
+                    val_k = M_loss_fr_k;
+                else
+                    val_k = M_loss_k;
+                end
+
+                val_k = min(val_k, m_tan);
+
+                if ks > 1 && val_k < M_shu_sweep(ks-1)
+                    val_k = M_shu_sweep(ks-1);
+                end
+                M_shu_sweep(ks) = val_k;
+            end
+            M_loss_S_frag_AB_extrap(i) = M_shu_sweep(end);
+        end
+
+        % Update Species Reservoirs (using clamped M_loss_S_frag_AB_extrap)
         f_CO2_s = M_CO2_shu / M_at_rem_shu;
         f_N2_s  = M_N2_shu  / M_at_rem_shu;
         f_H2O_s = M_H2O_shu / M_at_rem_shu;
 
-        % Calculate erosion and delivery (with AIRBURSTS)
-        M_CO2_shu = M_CO2_shu - (M_loss_S_frag_AB(i) * f_CO2_s) + m_co2_add;
-        M_N2_shu  = M_N2_shu  - (M_loss_S_frag_AB(i) * f_N2_s)  + m_n2_add;
-        M_H2O_shu = M_H2O_shu - (M_loss_S_frag_AB(i) * f_H2O_s) + m_h2o_add;
+        M_CO2_shu = M_CO2_shu - (M_loss_S_frag_AB_extrap(i) * f_CO2_s) + m_co2_add;
+        M_N2_shu  = M_N2_shu  - (M_loss_S_frag_AB_extrap(i) * f_N2_s)  + m_n2_add;
+        M_H2O_shu = M_H2O_shu - (M_loss_S_frag_AB_extrap(i) * f_H2O_s) + m_h2o_add;
+ 
+
 
         % Update the total mass:
         M_at_rem_shu = M_CO2_shu + M_N2_shu + M_H2O_shu;
@@ -586,11 +643,6 @@ for j=1:1:num_steps
         % 2. Kegerreis mass loss evaluated on the COMPOSITE reservoir
         M_loss_ke_comp = X(i) * M_at_rem_comp;
 
-
-        %compteurs for transition in composite scheme (Shuv->Keg).
-       
-        iminc = 50e3; % [meters] Below this radius value, pure Shuvalov model 
-        imaxc = 2443e3; % [meters] Above this radius value, pure Kegerreis model 
 
         %composite lossscheme (with Shuvalov extrapolation)
         if (R(i)<iminc)
@@ -708,6 +760,8 @@ for j=1:1:num_steps
         m_n2_delivered_cum  = m_n2_delivered_cum  + m_n2_add;
 
         impact_idx = impact_idx + 1;
+        
+
         
     end % End while impacts
     
