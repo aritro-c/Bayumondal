@@ -414,8 +414,7 @@ for j=1:1:num_steps
 
         % Impact efficiency [non-dim.] (Shuvalov's eq. (2))
         xi(i)       = (2.000*R(i))^3*rho_imp*rho_p*(v(i)^2-v_esc(i)^2)/(height_atm_current_val^3*rho_atm_current*v_esc(i)^2*(rho_p+rho_imp));
-        
-        xi(i)=max(xi(i),1000);
+
         
         % Slope of factor xi
         Dchi(i)     = (9.70992e-7)*(xi(i)^(4.239))*(0.000100423*(log(xi(i))^4)-0.00526501*(log(xi(i))^3)+0.0975584*(log(xi(i))^2)-0.800091*log(xi(i))+2.27527)*10^((log(xi(i))^2)*(0.0000200847*(log(xi(i))^3)-0.00131625*(log(xi(i))^2)+0.0325195*log(xi(i))-0.400045));
@@ -482,7 +481,7 @@ for j=1:1:num_steps
         % Since the Shuvalov model depends on H, impact velocity, etc., it is not static and needs to be calculated for each impact.
         
         
-        % Monotonic Clamp for Pure Shuvalov above 50 km ---
+        % Monotonic Clamp for Pure Shuvalov above 50 km
         
         if R(i) <= iminc
             M_loss_S_frag_AB_extrap(i) = M_loss_S_frag_AB(i);
@@ -500,7 +499,6 @@ for j=1:1:num_steps
 
                 xi_k = (2*Rk)^3*rho_imp*rho_p*(vk^2-v_esc_k^2) / ...
                        (height_atm_current_val^3*rho_atm_current*v_esc_k^2*(rho_p+rho_imp));
-                xi_k = max(xi_k, 1000);
                 chi_k = 10^(-6.375+5.239*log10(xi_k)-2.121*(log10(xi_k)^2) ...
                         +0.397*(log10(xi_k)^3)-0.037*(log10(xi_k)^4)+0.0013*(log10(xi_k)^5));
                 M_loss_k = chi_k * Mk * ((vk^2-v_esc_k^2)/v_esc_k^2);
@@ -650,7 +648,6 @@ for j=1:1:num_steps
             % a. Pure Shuvalov + Airburst evaluated on COMPOSITE atmosphere
             xi_c = (2.000*R(i))^3 * rho_imp * rho_p * (v(i)^2 - v_esc(i)^2) / ...
                    (height_atm_comp^3 * rho_atm_comp * v_esc(i)^2 * (rho_p + rho_imp));
-            xi_c = max(xi_c, 1000);
             chi_c = 10^(-6.375 + 5.239*log10(xi_c) - 2.121*(log10(xi_c)^2) + ...
                     0.397*(log10(xi_c)^3) - 0.037*(log10(xi_c)^4) + 0.0013*(log10(xi_c)^5));
             M_loss_c = chi_c * M_imp(i) * ((v(i)^2 - v_esc(i)^2) / v_esc(i)^2);
@@ -699,7 +696,6 @@ for j=1:1:num_steps
                 % Shuvalov ground-impact (using height_atm_comp and rho_atm_comp)
                 xi_k = (2*Rk)^3*rho_imp*rho_p*(vk^2-v_esc_k^2) / ...
                        (height_atm_comp^3*rho_atm_comp*v_esc_k^2*(rho_p+rho_imp));
-                xi_k = max(xi_k, 1000);
                 chi_k = 10^(-6.375+5.239*log10(xi_k)-2.121*(log10(xi_k)^2) ...
                         +0.397*(log10(xi_k)^3)-0.037*(log10(xi_k)^4)+0.0013*(log10(xi_k)^5));
                 M_loss_k = chi_k * Mk * ((vk^2-v_esc_k^2)/v_esc_k^2);
