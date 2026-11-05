@@ -16,7 +16,7 @@ G              = 6.67384e-11; % Gravitational constant [m^/(kg s^2)]
 
 
 % AIRBURST for Shuvalov
-use_AB         = true;     % Set to true to use Airburst for Shuvalov
+use_AB         = false;     % Set to true to use Airburst for Shuvalov
 
 
 % COMPOSITE Scheme Limits
